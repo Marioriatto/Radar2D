@@ -1,19 +1,35 @@
-#include <Servo.h>
-const int servoPin = 9, echo = 10, trigger = 11;
+#include <Servo.h>. 
 
-Servo servo;
-// twelve Servo objects can be created on most boards
+const int trigPin = 10;
+const int echoPin = 11;
 
-int angle = 0;    // variable to store the servo position
-
+long duration;
+int distance;
+Servo myServo;
 void setup() {
-  pinMode(echo, INPUT);
-  pinMode(trigger, OUTPUT);
-  pinMode(servoPin, OUTPUT);
-  servo.attach(servoPin);  // attaches the servo on pin 9 to the Servo object
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
   Serial.begin(9600);
-  servo.write(0);
+  myServo.attach(9);
 }
-
 void loop() {
+  for(int i=15;i<=165;i++){  
+  myServo.write(i);
+  delay(30);
+  distance = 0;
+  
+  Serial.print(i); // Sends the current degree into the Serial Port
+  Serial.print(":");
+  Serial.print(distance); // Sends the distance value into the Serial Port
+  Serial.print(",");
+  }
+  for(int i=165;i>15;i--){  
+  myServo.write(i);
+  delay(30);
+  distance = calculateDistance();
+  Serial.print(i);
+  Serial.print(":");
+  Serial.print(distance);
+  Serial.print(",");
+  }
 }
