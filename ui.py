@@ -282,12 +282,6 @@ class RadarApp:
             point["age"] += 1
         self.points = [point for point in self.points if point["age"] < self.FADE_STEPS * 1.5]
 
-        #Línea de sweep
-        if self.sweep_angle <= 0:
-            self.sweep_foward = False
-        elif self.sweep_angle >= 180:
-            self.sweep_foward = True
-        self.sweep_angle = ((self.sweep_angle - self.SWEEP_SPEED) if (self.sweep_foward) else (self.sweep_angle + self.SWEEP_SPEED))
         theta = math.radians(self.sweep_angle)
         sx = circlex + radius * math.cos(theta)
         sy = circley - radius * math.sin(theta)
@@ -351,14 +345,14 @@ class RadarApp:
             except Exception:
                 break
         self.running = False
+
     #  PARSING
 
     def _parse_and_add(self, raw: str):
-        """Parsea 'angulo:distancia,' (con coma) y agrega puntos al radar."""
         raw = raw.strip()
         if not raw:
             return
-    
+
         tokens = [t.strip() for t in raw.split(",") if t.strip()]
 
         for token in tokens:
@@ -376,6 +370,7 @@ class RadarApp:
 
                 self.total_reads += 1
                 self.last_data = f"{angle}deg  {dist} cm"
+                self.sweep_angle = float(angle)
 
                 self.points.append({
                     "angle": angle,
@@ -387,7 +382,6 @@ class RadarApp:
 
             except (ValueError, IndexError):
                 continue
-
     def _set_status(self, online: bool, text: str = None):
         if online:
             txt = text or "ONLINE"
