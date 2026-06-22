@@ -92,8 +92,8 @@ class RadarApp:
         #Sección serial
         self._section(parent=left, text="SERIAL PORT")
 
-        self.port_var = "COM3"
-        self.port_combo  = tk.Label(left, text="COM3", width=6, font=FONT)
+        self.port_var = "COM5"
+        self.port_combo  = tk.Label(left, text="COM5", width=6, font=FONT)
         self.port_combo.pack(padx=16, pady=(0,4))
 
         self.baud_var = 9600
