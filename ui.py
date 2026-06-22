@@ -5,15 +5,11 @@ Convierte a cartesianas y muestra en semicírculo radar estilo militar
 """
 # [point = {x, y, age, angle, dist}]
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import messagebox
 import math
 import threading
-import time
-import random
 
 import serial
-import serial.tools.list_ports
-
 #  CONSTANTES
 BG          = "#0a0f0a"
 RADAR_BG    = "#060d06"
@@ -144,16 +140,6 @@ class RadarApp:
         self.canvas.grid(row=0, column=0, sticky="nsew")
         self.canvas.bind("<Configure>", self._on_resize)
 
-        # Raw data log (parte de abajo)
-        log_frame = tk.Frame(right, bg=PANEL_BG,
-                             highlightbackground=BORDER, highlightthickness=1)
-        log_frame.grid(row=1, column=0, sticky="ew", pady=(4,0))
-
-        tk.Label(log_frame, text="RAW FEED", font=SMALL_FONT,
-                 bg=PANEL_BG, fg=TEXT_DIM).pack(side="left", padx=8)
-        self.log_var = tk.StringVar(value="Awaiting data...")
-        tk.Label(log_frame, textvariable=self.log_var, font=FONT,
-                 bg=PANEL_BG, fg=TEXT_GREEN).pack(side="left", padx=4)
 
     def _section(self, parent, text):
         frame = tk.Frame(parent, bg=PANEL_BG)
@@ -227,11 +213,10 @@ class RadarApp:
                                     text=dist_label, fill=TEXT_DIM,
                                     font=SMALL_FONT, anchor="w", tags="base")
 
-        # Línea de base (diámetro)
+        # Línea de base
         self.canvas.create_line(circlex - radius, circley, circlex + radius, circley,
                                 fill=GRID_MID, width=1, tags="base")
 
-        # Radiales cada 30°
         for angle in range(0, 181, 30):
             theta = math.radians(angle)
             x2 = circlex + radius * math.cos(theta)
@@ -256,7 +241,7 @@ class RadarApp:
                                  fill=TEXT_GREEN, font=("Courier New", 12, "bold"),
                                  tags="base")
 
-    #  ANIMACIÓN (sweep + puntos)
+    #  ANIMACIÓN
 
     def _animate(self):
         self._draw_frame()
@@ -271,7 +256,7 @@ class RadarApp:
             age_ratio = point["age"] / self.FADE_STEPS
             if age_ratio > 1:
                 continue
-            # Interpolar color verde→oscuro
+            # Interpolar color
             green = int(255 * (1 - age_ratio))
             r_c   = int(0)
             b_c   = int(20 * (1 - age_ratio))
@@ -309,7 +294,7 @@ class RadarApp:
         self.canvas.create_line(circlex, circley, sx, sy,
                                 fill=SWEEP_COLOR, width=2,
                                 tags="dynamic")
-        # Glow del sweep (líneas casi transparentes)
+        # Glow del sweep
         for offset, alpha in [(-3, "0d"), (-2, "1a"), (-1, "33")]:
             a_off = (self.sweep_angle + offset) % 180
             if 0 <= a_off <= 180:
@@ -320,7 +305,6 @@ class RadarApp:
                                         fill=f"#00{alpha}00",
                                         width=1, tags="dynamic")
 
-        # ── Actualizar info ────────────────────────────────────────────────
         self.last_val.config(text=self.last_data)
         self.reads_val.config(text=str(self.total_reads))
         self.pts_val.config(text=str(len(self.points)))
@@ -344,7 +328,7 @@ class RadarApp:
             self.serial_thread = threading.Thread(target=self._read_serial,
                                                    daemon=True)
             self.serial_thread.start()
-            self._set_status(True, f"● LIVE  {port} @ {baud}")
+            self._set_status(True, f"PORT {port} : {baud}")
             self.btn_connect.config(text="DISCONNECT")
         except Exception as e:
             messagebox.showerror("Connection Error", str(e))
@@ -370,35 +354,39 @@ class RadarApp:
     #  PARSING
 
     def _parse_and_add(self, raw: str):
-        """Parsea 'angulo:distancia' y agrega el punto al radar."""
+        """Parsea 'angulo:distancia,' (con coma) y agrega puntos al radar."""
         raw = raw.strip()
-        self.log_var.set(raw[:60])
-        try:
-            parts = raw.split(":")
-            if len(parts) != 2:
-                return
-            angle = int(parts[0].strip())
-            dist  = int(parts[1].strip())
+        if not raw:
+            return
+    
+        tokens = [t.strip() for t in raw.split(",") if t.strip()]
 
-            if not (0 <= angle <= 180):
-                return
-            if dist <= 0:
-                return
+        for token in tokens:
+            try:
+                parts = token.split(":")
+                if len(parts) != 2:
+                    continue
+                angle = int(parts[0].strip())
+                dist  = int(parts[1].strip())
 
-            self.total_reads += 1
-            self.last_data = f"{angle}°  {dist} u"
+                if not (0 <= angle <= 180):
+                    continue
+                if dist <= 0:
+                    continue
 
-            self.points.append({
-                "angle": angle,
-                "dist":  min(dist, self.MAX_DISTANCE),
-                "age":   0,
-            })
-            if len(self.points) > self.MAX_POINTS:
-                self.points.pop(0)
+                self.total_reads += 1
+                self.last_data = f"{angle}deg  {dist} cm"
 
-        except (ValueError, IndexError):
-            pass
+                self.points.append({
+                    "angle": angle,
+                    "dist":  min(dist, self.MAX_DISTANCE),
+                    "age":   0,
+                })
+                if len(self.points) > self.MAX_POINTS:
+                    self.points.pop(0)
 
+            except (ValueError, IndexError):
+                continue
 
     def _set_status(self, online: bool, text: str = None):
         if online:
