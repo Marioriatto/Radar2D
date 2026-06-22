@@ -19,8 +19,10 @@ void loop() {
       Serial.print(":"); 
     if(distance > 0 && distance < 400){
       Serial.print(distance);
+      digitalWrite(2,HIGH);
     }else {
       Serial.print(0);
+      digitalWrite(2,LOW);
     }
     
       Serial.print(",");
@@ -33,8 +35,10 @@ void loop() {
       Serial.print(":");
     if(distance > 0 && distance < 400){
       Serial.print(distance);
+      digitalWrite(2,HIGH);
     } else {
       Serial.print(0);
+      digitalWrite(2,LOW);
     }
     
       Serial.print(",");
