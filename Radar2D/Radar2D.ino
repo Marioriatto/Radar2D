@@ -15,23 +15,29 @@ void loop() {
     myServo.write(i);
     delay(5);
     distance = calculateDistance();
-    if(distance > 0 && distance < 400){
       Serial.print(i); 
       Serial.print(":"); 
+    if(distance > 0 && distance < 400){
       Serial.print(distance);
-      Serial.print(",");
+    }else {
+      Serial.print(0);
     }
+    
+      Serial.print(",");
   }
   for(int i=165;i>15;i--){  
     myServo.write(i);
     delay(5);
     distance = calculateDistance();
-    if(distance > 0 && distance < 400){
       Serial.print(i);
       Serial.print(":");
+    if(distance > 0 && distance < 400){
       Serial.print(distance);
-      Serial.print(",");
+    } else {
+      Serial.print(0);
     }
+    
+      Serial.print(",");
   }
 }
 int calculateDistance(){
@@ -40,7 +46,7 @@ int calculateDistance(){
   digitalWrite(trigPin, HIGH); 
   delayMicroseconds(10);
   digitalWrite(trigPin, LOW);
-  duration = pulseIn(echoPin, HIGH, 13000);
+  duration = pulseIn(echoPin, HIGH, 26000);
   distance= duration*0.034/2; //velocidad del sonido
   return distance;
 }

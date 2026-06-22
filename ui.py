@@ -8,7 +8,7 @@ import tkinter as tk
 from tkinter import messagebox
 import math
 import threading
-
+import queue
 import serial
 #  CONSTANTES
 BG          = "#0a0f0a"
@@ -41,7 +41,7 @@ def polar_to_cartesian(angle_degree: int, distance: int, max_distance: int, circ
 
 class RadarApp:
 
-    MAX_DISTANCE = 800
+    MAX_DISTANCE = 450 # definido en el .ino en el pulseIn
     MAX_POINTS  = 120
     SWEEP_SPEED = 1.5
     FPS         = 30 
@@ -53,7 +53,7 @@ class RadarApp:
         self.root.configure(bg=BG)
         self.root.resizable(True, True)
         self.root.minsize(820, 560)
-
+        self._queue = queue.Queue()
         # SERIAL STATES
         self.serial_conn   = None
         self.serial_thread = None
@@ -106,7 +106,7 @@ class RadarApp:
         #Sección parámetros
         self._section(parent=left, text="PARAMETERS")
 
-        tk.Label(left, text="Max Distance: 800 cm",
+        tk.Label(left, text="Max Distance: 450 cm",
                  bg=PANEL_BG, fg=TEXT_DIM, font=SMALL_FONT).pack(anchor="w", padx=16)
 
 
@@ -248,6 +248,26 @@ class RadarApp:
         self.root.after(int(1000 / self.FPS), self._animate)
 
     def _draw_frame(self):
+        while not self._queue.empty():
+            try:
+                item = self._queue.get_nowait()
+                angle = item["angle"]
+                dist  = item["dist"]
+
+                self.total_reads += 1
+                self.last_data = f"{angle}deg  {dist} cm"
+                self.sweep_angle = float(angle)  # siempre mueve el sweep
+
+                if dist > 0:  # solo dibuja punto si hay objeto
+                    self.points.append({
+                        "angle": angle,
+                        "dist":  min(dist, self.MAX_DISTANCE),
+                        "age":   0,
+                    })
+                    if len(self.points) > self.MAX_POINTS:
+                        self.points.pop(0)
+            except queue.Empty:
+                break
         self.canvas.delete("dynamic")
         circlex, circley, radius = self._radar_geom
         max_distance = self.MAX_DISTANCE
@@ -337,51 +357,38 @@ class RadarApp:
 
     def _read_serial(self):
         """Hilo de lectura serial continua."""
+        buffer = ""
         while self.running and self.serial_conn:
             try:
-                raw = self.serial_conn.readline().decode("utf-8", errors="ignore").strip()
-                if raw:
-                    self._parse_and_add(raw)
+                char = self.serial_conn.read(1).decode("utf-8", errors="ignore")
+                if char == ",":
+                    token = buffer.strip()
+                    buffer = ""
+                    if token:
+                        self._parse_token(token)
+                else:
+                    buffer += char
             except Exception:
                 break
         self.running = False
 
     #  PARSING
 
-    def _parse_and_add(self, raw: str):
-        raw = raw.strip()
-        if not raw:
-            return
-
-        tokens = [t.strip() for t in raw.split(",") if t.strip()]
-
-        for token in tokens:
-            try:
-                parts = token.split(":")
-                if len(parts) != 2:
-                    continue
-                angle = int(parts[0].strip())
-                dist  = int(parts[1].strip())
-
-                if not (0 <= angle <= 180):
-                    continue
-                if dist <= 0:
-                    continue
-
-                self.total_reads += 1
-                self.last_data = f"{angle}deg  {dist} cm"
-                self.sweep_angle = float(angle)
-
-                self.points.append({
-                    "angle": angle,
-                    "dist":  min(dist, self.MAX_DISTANCE),
-                    "age":   0,
-                })
-                if len(self.points) > self.MAX_POINTS:
-                    self.points.pop(0)
-
-            except (ValueError, IndexError):
-                continue
+    def _parse_token(self, token: str):
+        try:
+            parts = token.split(":")
+            if len(parts) != 2:
+                return
+            angle = int(parts[0].strip())
+            dist  = int(parts[1].strip())
+    
+            if not (0 <= angle <= 180):
+                return
+    
+            self._queue.put({"angle": angle, "dist": dist})
+    
+        except (ValueError, IndexError):
+            pass
     def _set_status(self, online: bool, text: str = None):
         if online:
             txt = text or "ONLINE"
