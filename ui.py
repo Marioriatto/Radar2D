@@ -421,7 +421,6 @@ class RadarApp:
             tk.Label(row, text=info, font=SMALL_FONT,
                      bg=PANEL_BG, fg=track.color, anchor="w").pack(side="left")
 
-    # ── SERIAL ────────────────────────────────────────────────────────────────
 
     def _toggle_connect(self):
         if self.running and not self.demo_mode:
